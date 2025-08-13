@@ -187,8 +187,8 @@ class CombinedConstraintsExperiment(experiment.Experiment):
                                                   sum([x.convert_to_mip_timer for x in
                                                        self._tgd_db_extractors]) +
                                                   solved_time,
-                      'number_of_solver_variables': self._solver.NumVariables(),
-                      'number_of_solver_constraints': self._solver.NumConstraints(),
+                      'number_of_solver_variables': self._solver.model_number_of_variables(),
+                      'number_of_solver_constraints': self._solver.model_number_of_constraints(),
                       'solving_status': self._abc_convertor.solver_status,
                       'resulted_committee': committee_string
                       }
