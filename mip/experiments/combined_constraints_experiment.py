@@ -13,6 +13,7 @@ import mip.mip_db_data_extractors.abc_setting_extractor as abc_setting_extractor
 import mip.mip_db_data_extractors.dc_extractor as dc_extractor
 import mip.mip_db_data_extractors.tgd_extractor as tgd_extractor
 import mip.experiments.experiment as experiment
+import mip.mip_reduction.solver_wrapper as solver_wrapper
 
 MODULE_NAME = "Combined Constraint Experiment"
 
@@ -136,7 +137,7 @@ class CombinedConstraintsExperiment(experiment.Experiment):
         if self._abc_convertor.solver_status == 0:
             # If solved the problem successfully.
             for key, value in self._abc_convertor.model_candidates_variables.items():
-                if value.solution_value() == 1:
+                if solver_wrapper.get_variable_value(value) == 1:
                     # If the candidate is chosen to the committee.
                     committee_string += f"{key}, "
         else:
