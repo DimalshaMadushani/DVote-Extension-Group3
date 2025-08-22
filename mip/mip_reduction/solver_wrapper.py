@@ -51,7 +51,9 @@ class SolverWrapper:
             if self._solver_status == gurobipy.GRB.LOADED:
                 return config.SOLVER_MODEL_NOT_SOLVED_ERROR_STATUS
             elif self._solver_status == gurobipy.GRB.OPTIMAL:
-               return config.SOLVER_FOUND_OPTIMAL_STATUS
+                return config.SOLVER_FOUND_OPTIMAL_STATUS
+            elif self._solver_status == gurobipy.GRB.INFEASIBLE:
+                return config.SOLVER_PROVEN_INFEASIBLE_STATUS
             elif self._solver_status == gurobipy.GRB.INF_OR_UNBD:
                 return config.SOLVER_PROVEN_INFEASIBLE_STATUS
             elif self._solver_status == gurobipy.GRB.UNBOUNDED:
