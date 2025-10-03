@@ -1,9 +1,9 @@
 from collections import Counter
-import ortools.linear_solver.pywraplp as pywraplp
 import networkx as nx
 
 import config
 import mip.mip_reduction.mip_convertor as mip_convertor
+import mip.mip_reduction.solver_wrapper as solver_wrapper
 
 MODULE_NAME = "ABC to MIP Convertor"
 
@@ -20,9 +20,10 @@ class ABCToMIPConvertor(mip_convertor.MIPConvertor):
        r - The voting rule score function.
        Gamma - Set of contextual constraints.
     """
+
     # This implementation is described in the section:
     # Mixed Integer Programming Implementation - Winning committee without constraints.
-    def __init__(self, solver: pywraplp.Solver):
+    def __init__(self, solver):
         """Initializing the convertor.
         :param solver: The input solver wrapper.
         """
@@ -57,7 +58,7 @@ class ABCToMIPConvertor(mip_convertor.MIPConvertor):
         solution = f""
         count = 0
         for key, value in self.model_candidates_variables.items():
-            solution += f"Candidate id: {key}, Candidate value: {value.solution_value()}.\n"
+            solution += f"Candidate id: {key}, Candidate value: {solver_wrapper.get_variable_value(value)}.\n"
             count += 1
             if count > 50:
                 break
@@ -69,13 +70,13 @@ class ABCToMIPConvertor(mip_convertor.MIPConvertor):
                 break
         count = 0
         for key, value in self._model_voters_approval_candidates_sum_variables.items():
-            solution += f"Voter id: {key}, Voter approval sum: {value.solution_value()}.\n"
+            solution += f"Voter id: {key}, Voter approval sum: {solver_wrapper.get_variable_value(value)}.\n"
             count += 1
             if count > 50:
                 break
         count = 0
         for key, value in self._model_voters_score_contribution_variables.items():
-            solution += f"Voter id: {key}, Voter contribution: {value.solution_value()}.\n"
+            solution += f"Voter id: {key}, Voter contribution: {solver_wrapper.get_variable_value(value)}.\n"
             count += 1
             if count > 50:
                 break
@@ -109,7 +110,7 @@ class ABCToMIPConvertor(mip_convertor.MIPConvertor):
         debug_message = f"Candidates group size = {self.candidates_group_size}.\n" \
                         f"Voters group size (non-empty approval profile - no lifted) = {self.voters_group_size}.\n" \
                         f"Committee size = {self._committee_size}.\n" \
-                        # f"Approval profile = {self._approval_profile}."
+            # f"Approval profile = {self._approval_profile}."
         config.debug_print(MODULE_NAME, debug_message)
 
         # Set the voting rule.
@@ -158,27 +159,29 @@ class ABCToMIPConvertor(mip_convertor.MIPConvertor):
     def _define_abc_setting_variables(self) -> None:
         # Create the committee MIP variables.
         for candidate_id in self._candidates_ids_set:
-            self.model_candidates_variables[candidate_id] = self._model.BoolVar("c_" + str(candidate_id))
+            self.model_candidates_variables[candidate_id] = self._model.model_add_bool_var("c_" + str(candidate_id))
 
         # Create the voters approval candidates sum variables.
         for voter_id in self._approval_profile.keys():
             self._model_voters_approval_candidates_sum_variables[voter_id] = \
-                self._model.IntVar(0, self._committee_size, "v_" + str(voter_id) + "_approved_candidates_sum")
+                self._model.model_add_int_var(0, self._committee_size,
+                                              "v_" + str(voter_id) + "_approved_candidates_sum")
 
         # Create the voters score contribution MIP variables.
         for voter_id in self._approval_profile.keys():
             self._model_voters_score_contribution_variables[voter_id] = \
-                self._model.NumVar(0, self._max_score_function_value, "v_" + str(voter_id) + "_score")
+                self._model.model_add_num_var(0, self._max_score_function_value, "v_" + str(voter_id) + "_score")
 
     def _define_abc_setting_constraints(self) -> None:
         # Add the constraint about the number of candidates in the committee.
-        self._model.Add(sum(self.model_candidates_variables.values()) == self._committee_size)
+        self._model.model_add_constraint(sum(self.model_candidates_variables.values()) == self._committee_size)
 
         # Add constraints for voters approval candidates sum vars to be equal to the sum of their approved candidates.
         for voter_id in self._approval_profile.keys():
-            self._model.Add(self._model_voters_approval_candidates_sum_variables[voter_id] ==
-                            sum([self.model_candidates_variables[candidate_id] for candidate_id in
-                                 self._approval_profile[voter_id] if candidate_id in self.model_candidates_variables]))
+            self._model.model_add_constraint(self._model_voters_approval_candidates_sum_variables[voter_id] ==
+                                             sum([self.model_candidates_variables[candidate_id] for candidate_id in
+                                                  self._approval_profile[voter_id] if
+                                                  candidate_id in self.model_candidates_variables]))
 
         # Add the constraint about the voter score contribution.
         for voter_id in self._approval_profile.keys():
@@ -189,26 +192,27 @@ class ABCToMIPConvertor(mip_convertor.MIPConvertor):
                 max_candidate_approval = min(self._committee_size, len(self._approval_profile[voter_id]))
             for i in range(0, max_candidate_approval + 1):
                 # Define the abs value replacement y_plus + y_minus = abs(i-voter_approval_sum).
-                b = self._model.BoolVar('v_b_' + str(voter_id) + "_" + str(i))
-                y_plus = self._model.IntVar(0, self._committee_size + 1,
-                                            'v_y_plus_' + str(voter_id) + "_" + str(i))
-                y_minus = self._model.IntVar(0, self._committee_size + 1,
-                                             'v_y_minus_' + str(voter_id) + "_" + str(i))
-                self._model.Add(y_minus <= ((1 - b) * (self._committee_size + 1)))
-                self._model.Add(y_plus <= (b * (self._committee_size + 1)))
-                self._model.Add((y_plus - y_minus) ==
-                                (i - self._model_voters_approval_candidates_sum_variables[voter_id]))
+                b = self._model.model_add_bool_var('v_b_' + str(voter_id) + "_" + str(i))
+                y_plus = self._model.model_add_int_var(0, self._committee_size + 1,
+                                                       'v_y_plus_' + str(voter_id) + "_" + str(i))
+                y_minus = self._model.model_add_int_var(0, self._committee_size + 1,
+                                                        'v_y_minus_' + str(voter_id) + "_" + str(i))
+                self._model.model_add_constraint(y_minus <= ((1 - b) * (self._committee_size + 1)))
+                self._model.model_add_constraint(y_plus <= (b * (self._committee_size + 1)))
+                self._model.model_add_constraint((y_plus - y_minus) ==
+                                                 (i - self._model_voters_approval_candidates_sum_variables[voter_id]))
                 # Add the constraint
                 # voter_contribution <= abs(i-voter_approval_sum)*(max_score_function_value+1) + score_function(i).
-                self._model.Add(self._model_voters_score_contribution_variables[voter_id] <=
-                                ((y_plus + y_minus) * (self._max_score_function_value + 1) +
-                                 self._voting_rule_score_function(i, len(self._approval_profile[voter_id]))))
+                self._model.model_add_constraint(self._model_voters_score_contribution_variables[voter_id] <=
+                                                 ((y_plus + y_minus) * (self._max_score_function_value + 1) +
+                                                  self._voting_rule_score_function(i, len(
+                                                      self._approval_profile[voter_id]))))
 
     def _define_abc_setting_objective(self) -> None:
         # The objective is to maximize the sum score of all (weighted) voters contribution.
-        self._model.Maximize(sum([score * (self._lifted_voters_weights[voter_id])
-                                  for voter_id, score in
-                                  self._model_voters_score_contribution_variables.items()]))
+        self._model.model_add_objective_maximize(sum([score * (self._lifted_voters_weights[voter_id])
+                                                      for voter_id, score in
+                                                      self._model_voters_score_contribution_variables.items()]))
 
     def define_dc(self, dc_candidates_sets):
         """Add a given Denial Constraint to the MIP model.
@@ -245,7 +249,7 @@ class ABCToMIPConvertor(mip_convertor.MIPConvertor):
         if len(dc_candidates_sets) > 0:
             dc_group_length = len(dc_candidates_sets[0])
         for candidates_set in new_dc_candidates_sets:
-            self._model.Add(
+            self._model.model_add_constraint(
                 sum([self.model_candidates_variables[candidate_index] for candidate_index in candidates_set
                      if candidate_index in self.model_candidates_variables])
                 <= (dc_group_length - 1))
@@ -265,9 +269,9 @@ class ABCToMIPConvertor(mip_convertor.MIPConvertor):
         # Mixed Integer Programming Implementation - Incorporating TGD.
         for element_members, tgd_representatives_sets in tgd_tuples_list:
             # Whether element_members chosen or not.
-            b = self._model.BoolVar('tgd_b_' + str(self._global_counter))
+            b = self._model.model_add_bool_var('tgd_b_' + str(self._global_counter))
             self._global_counter += 1
-            self._model.Add(
+            self._model.model_add_constraint(
                 sum([self.model_candidates_variables[x] for x in element_members
                      if x in self.model_candidates_variables])
                 <= (b - 1 + len(element_members)))
@@ -275,16 +279,16 @@ class ABCToMIPConvertor(mip_convertor.MIPConvertor):
             # List of possible representatives sets.
             b_representatives_list = []
             for representatives_set in tgd_representatives_sets:
-                current_b = self._model.BoolVar('tgd_b_' + str(self._global_counter))
+                current_b = self._model.model_add_bool_var('tgd_b_' + str(self._global_counter))
                 self._global_counter += 1
                 b_representatives_list.append(current_b)
-                self._model.Add(
+                self._model.model_add_constraint(
                     sum([self.model_candidates_variables[x] for x in representatives_set
                          if x in self.model_candidates_variables])
                     >= (current_b * len(representatives_set)))
 
             # If b chosen, chose at least one representatives_set.
-            self._model.Add(sum([x for x in b_representatives_list]) >= b)
+            self._model.model_add_constraint(sum([x for x in b_representatives_list]) >= b)
 
 
 if __name__ == '__main__':

@@ -9,6 +9,7 @@ from database import database_server_interface as db_interface
 import mip.mip_reduction.mip_convertor as mip_convertor
 import mip.mip_reduction.abc_to_mip_convertor as abc_to_mip_convertor
 from mip.mip_db_data_extractors.progress_bar_utils import run_func_with_fake_progress_bar
+import mip.mip_reduction.solver_wrapper as solver_wrapper
 
 MODULE_NAME = 'Experiment'
 # The results of an experiment are with a saved to .xlsx located in the experiments db folder (the parent folder of the
@@ -43,7 +44,7 @@ class Experiment:
         db_path = os.path.join(f"{self._database_name}")
         self._db_engine = db_interface.Database(db_path)
 
-        self._solver = mip_convertor.create_solver(config.SOLVER_NAME, config.SOLVER_TIME_LIMIT)
+        self._solver = solver_wrapper.SolverWrapper(config.SOLVER_NAME, config.SOLVER_TIME_LIMIT)
         self._abc_convertor = abc_to_mip_convertor.ABCToMIPConvertor(self._solver)
 
     def run_model(self) -> float:

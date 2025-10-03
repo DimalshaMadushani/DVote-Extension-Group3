@@ -48,23 +48,35 @@ def advanced_abc_settings_input(selected_db: str):
         with voters_settings_column[0]:
             voters_starting_point = st.number_input("Voters id to start from", min_value=0, step=1)
         with voters_settings_column[1]:
+            voters_group_size_default = 10000
+            if selected_db == config.TRIP_ADVISOR_DB_NAME:
+                voters_group_size_default = voters_group_max_size
+            elif selected_db == config.GLASGOW_ELECTIONS_DB_NAME:
+                voters_group_size_default = 30000
+
             voters_group_size = st.number_input(
                 f"Voters group size (up to {voters_group_max_size})",
                 min_value=1,
                 max_value=voters_group_max_size,
                 step=1,
-                value=10000
+                value=voters_group_size_default
             )
         candidates_settings_column = st.columns(2)
         with candidates_settings_column[0]:
             candidates_starting_point = st.number_input("Candidates id to start from", min_value=0, step=1)
         with candidates_settings_column[1]:
+            candidates_group_size_default = 100
+            if selected_db == config.TRIP_ADVISOR_DB_NAME:
+                candidates_group_size_default = candidates_group_max_size
+            elif selected_db == config.GLASGOW_ELECTIONS_DB_NAME:
+                candidates_group_size_default = candidates_group_max_size
+
             candidates_group_size = st.number_input(
                 f"Candidates group size (up to {candidates_group_max_size})",
                 min_value=1,
                 max_value=candidates_group_max_size,
                 step=1,
-                value=100
+                value=candidates_group_size_default
             )
 
         # User input - solver settings.

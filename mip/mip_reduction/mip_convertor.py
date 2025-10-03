@@ -1,7 +1,7 @@
 import time
-import ortools.linear_solver.pywraplp as pywraplp
 
 import config
+import mip.mip_reduction.solver_wrapper as solver_wrapper
 
 MODULE_NAME = "MIP Convertor"
 
@@ -10,7 +10,7 @@ class MIPConvertor:
     """An abstract class for converting a general problem to an MIP problem.
     """
 
-    def __init__(self, solver: pywraplp.Solver):
+    def __init__(self, solver: solver_wrapper.SolverWrapper):
         """Initializing the convertor.
 
         :param solver: The input solver wrapper.
@@ -28,9 +28,10 @@ class MIPConvertor:
         """
         # Solve the MIP problem.
         start_time = time.time()
-        self.solver_status = self._model.Solve()
+        self._model.solve()
+        self.solver_status = self._model.model_status()
         end_time = time.time()
-        if self.solver_status == pywraplp.Solver.OPTIMAL:
+        if self.solver_status == config.SOLVER_FOUND_OPTIMAL_STATUS:
             self._solved = True
         self.solving_time = end_time - start_time
 
@@ -59,25 +60,8 @@ class MIPConvertor:
         """
         if config.DEBUG:
             if self._solved:
-                for var in self._model.variables():
-                    print(f"Var name is {str(var)}, and var value is {str(var.solution_value())}")
-
-
-def create_solver(solver_name: str, solver_time_limit: int) -> pywraplp.Solver:
-    """Create a new pywraplp solver.
-    :param solver_name: The solver name.
-    :param solver_time_limit: The solver time limit in milliseconds.
-    :return:
-    """
-    if solver_name == "GUROBI":
-        solver = pywraplp.Solver.CreateSolver("GUROBI_MIXED_INTEGER_PROGRAMMING")
-    else:
-        solver = pywraplp.Solver.CreateSolver(solver_name)
-    if not solver:
-        print("ERROR: Creating solver failed.")
-        exit(1)
-    solver.set_time_limit(solver_time_limit)
-    return solver
+                for (var_name, var_value) in self._model.model_variables():
+                    print(f"Var name is {var_name}, and var value is {str(var_value)}")
 
 
 if __name__ == '__main__':

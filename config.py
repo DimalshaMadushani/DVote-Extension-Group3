@@ -1,6 +1,7 @@
 import pandas as pd
 import shutil
 import os
+import ortools.linear_solver.pywraplp as pywraplp
 
 from mip.mip_reduction import score_functions
 
@@ -29,22 +30,29 @@ MINUTE = 1000 * 60
 HOUR = MINUTE * 60
 
 # Solver status:
-
+# --------------------------------------------------------------------------------
 # Success, found optimal solution.
-SOLVER_FOUND_OPTIMAL_STATUS = 0
+SOLVER_FOUND_OPTIMAL_STATUS = pywraplp.Solver.OPTIMAL
+
 # Found feasible but not optimal due to timeout.
-SOLVER_TIMEOUT_STATUS = 1
+SOLVER_TIMEOUT_STATUS = pywraplp.Solver.FEASIBLE
+
 # Proved that there is no feasible solution.
-SOLVER_PROVEN_INFEASIBLE_STATUS = 2
+SOLVER_PROVEN_INFEASIBLE_STATUS = pywraplp.Solver.INFEASIBLE
+
 # The problem is unbounded, meaning the objective function can increase (or decrease) indefinitely without violating
 # constraints.
-SOLVER_PROVEN_UNBOUNDED_STATUS = 3
+SOLVER_PROVEN_UNBOUNDED_STATUS = pywraplp.Solver.UNBOUNDED
+
 # The solver terminated abnormally, and the result is inconclusive.
-SOLVER_ABNORMAL_ERROR_STATUS = 4
+SOLVER_ABNORMAL_ERROR_STATUS = pywraplp.Solver.ABNORMAL
+
 # The model is invalid (for example NaN coefficients).
-SOLVER_MODEL_INVALID_ERROR_STATUS = 5
+SOLVER_MODEL_INVALID_ERROR_STATUS = pywraplp.Solver.MODEL_INVALID
+
 # solve() function is yet to be called.
-SOLVER_MODEL_NOT_SOLVED_ERROR_STATUS = 6
+SOLVER_MODEL_NOT_SOLVED_ERROR_STATUS = pywraplp.Solver.NOT_SOLVED
+# --------------------------------------------------------------------------------
 
 SOLVER_TIME_LIMIT = int(0.5 * HOUR)
 SOLVER_NAMES = ["SAT", "CP_SAT", "SAT", "GLPK", "GUROBI"]
@@ -61,6 +69,7 @@ SCORE_FUNCTION = SCORE_RULES[SCORE_RULE_NAME]
 LIFTED_INFERENCE = True
 MINIMIZE_VOTER_CONTRIBUTION_EQUATIONS = True
 MINIMIZE_DC_CONSTRAINTS_EQUATIONS = True
+
 # --------------------------------------------------------------------------------
 
 # DB and dataset configuration:
