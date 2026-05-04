@@ -1,4 +1,24 @@
+"""Application-layer bitmap index for fast in-memory row filtering.
+
+Used by TGDExtractor to replace the N-per-row SQL queries with a single query
+plus frozenset intersections:
+
+    1. Execute the RHS join_tables() query *once*.
+    2. Build a BitmapIndex from that result DataFrame.
+    3. For each LHS row, call BitmapIndex.query(shared_filters) to get the
+       matching row positions in O(k * min(|bitmap_i|)) time instead of O(N * SQL_round_trip).
+
+Index structure
+---------------
+For each column `col`, the internal dict maps:
+    col → { value → frozenset(integer row labels) }
+
+Intersection stops early (short-circuit) as soon as the running result set
+becomes empty, avoiding unnecessary work for highly selective filters.
+"""
+
 import pandas as pd
+
 
 class BitmapIndex:
     """An in-memory bitmap (inverted) index over a pandas DataFrame.
@@ -35,13 +55,27 @@ class BitmapIndex:
         return set(self._index.keys())
 
     def query(self, filter_dict: dict) -> frozenset:
+        """Return the frozenset of row labels matching all (col, value) equality filters.
+
+        Parameters
+        ----------
+        filter_dict : dict
+            A mapping of { column_name: expected_value }.
+            Columns not present in this index are silently ignored.
+
+        Returns
+        -------
+        frozenset
+            Integer row labels (same labels as df.index) where every supplied
+            filter matches.  Returns an empty frozenset if any filter has no hits.
+        """
         if not filter_dict:
             return self._all_indices
 
         # Sort filters by bitmap cardinality (smallest first) for faster early termination.
         ordered_filters = sorted(
             ((col, val) for col, val in filter_dict.items() if col in self._index),
-            key=lambda cv: len(self._index[cv[0]].get(cv[1], set())),
+            key=lambda cv: len(self._index[cv[0]].get(cv[1], frozenset())),
         )
 
         result: frozenset = self._all_indices
