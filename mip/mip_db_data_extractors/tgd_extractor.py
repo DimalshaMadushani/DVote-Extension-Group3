@@ -198,6 +198,7 @@ class TGDExtractor(db_data_extractor.DBDataExtractor):
                 # Cleanup temp tables
                 indexed_temp_join.drop_temp_table(db, tmp_lhs)
                 indexed_temp_join.drop_temp_table(db, tmp_rhs)
+<<<<<<< HEAD
                 
                 # If there were no join columns (i.e., join_cols is empty), the
                 # `stream_joined_groups` call above yields nothing. In that case,
@@ -209,6 +210,8 @@ class TGDExtractor(db_data_extractor.DBDataExtractor):
                         current_element_committee_members = set(legal_assignments_start.iloc[lhs_idx][self._committee_members_list_start])
                         tgd_tuples_list = self._extract_data_from_db_aux(legal_assignments_end, tgd_tuples_list,
                                                                          current_element_committee_members)
+=======
+>>>>>>> f4eb9e30804320d56459938193fea07f5d37aafe
             # Legacy bitmap fallback removed — always use indexed temp join pipeline.
 
         config.debug_print(MODULE_NAME, f"The tgd tuples list is {tgd_tuples_list}")
